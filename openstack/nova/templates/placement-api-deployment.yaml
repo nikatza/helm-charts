@@ -30,8 +30,13 @@ spec:
 {{ tuple . "nova" "placement-api" | include "helm-toolkit.snippets.kubernetes_metadata_labels" | indent 8 }}
       annotations:
         configmap-etc-hash: {{ include (print $.Template.BasePath "/placement-configmap.yaml") . | sha256sum }}
+        {{- if .Values.proxysql.mode }}
+        prometheus.io/scrape: "true"
+        prometheus.io/targets: {{ required ".Values.alerts.prometheus missing" .Values.alerts.prometheus | quote }}
+        {{- end }}
     spec:
 {{ tuple . "nova" "placement-api" | include "kubernetes_pod_anti_affinity" | indent 6 }}
+{{ include "utils.proxysql.pod_settings" . | indent 6 }}
       containers:
         - name: nova-placement
           image: {{ required ".Values.global.registry is missing" .Values.global.registry}}/ubuntu-source-nova-placement-api:{{.Values.imageVersionNovaPlacementApi |  default .Values.imageVersionNova | default .Values.imageVersion | required "Please set nova.imageVersion or similar" }}
@@ -107,10 +112,13 @@ spec:
               name: nova-placement
               subPath: placement_uwsgi.ini
               readOnly: true
+            {{- include "utils.proxysql.volume_mount" . | indent 12 }}
+        {{- include "utils.proxysql.container" . | indent 8 }}
       volumes:
         - name: etcnova
           emptyDir: {}
         - name: nova-placement
           configMap:
             name: nova-placement
+        {{- include "utils.proxysql.volumes" . | indent 8 }}
 {{- end }}

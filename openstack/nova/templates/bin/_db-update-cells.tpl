@@ -1,7 +1,5 @@
 #!/bin/bash
-
-set -e
-
+set -xeuo pipefail
 
 update_cell() {
   cell_name="${1}"; shift
@@ -57,7 +55,7 @@ for line in $(nova-manage cell_v2 list_cells --verbose | grep ':/'); do
       found_cell1="true"
       update_cell "${cell_name}" "${cell_uuid}" \
             "${transport_url}" "{{ tuple . .Values.rabbitmq | include "rabbitmq._transport_url" }}" \
-            "${database_connection}" "{{ tuple . .Values.dbName .Values.dbUser (default .Values.dbPassword .Values.global.dbPassword) | include "db_url_mysql" }}"
+            "${database_connection}" "{{ include "db_url_mysql" . }}"
       ;;
 {{ if .Values.cell2.enabled }}
     {{.Values.cell2.name}})
@@ -81,7 +79,7 @@ if [ "${found_cell1}" = "false" ]; then
   nova-manage cell_v2 create_cell --verbose \
       --name "cell1" \
       --transport-url "{{ tuple . .Values.rabbitmq | include "rabbitmq._transport_url" }}" \
-      --database_connection "{{ tuple . .Values.dbName .Values.dbUser (default .Values.dbPassword .Values.global.dbPassword) | include "db_url_mysql" }}"
+      --database_connection "{{ include "db_url_mysql" . }}"
   nova-manage cell_v2 discover_hosts
 fi
 
@@ -95,4 +93,4 @@ if [ "$found_cell2" = "false" ]; then
 fi
 {{- end }}
 
-exit
+{{ include "utils.proxysql.proxysql_signal_stop_script" . }}
